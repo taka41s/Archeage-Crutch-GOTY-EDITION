@@ -1,0 +1,32 @@
+[
+  {
+    "type": 2113,
+    "name": "Berserk !",
+    "use": "F12"
+  },
+  {
+    "type": 16767,
+    "name": "Mistsong Nodachi",
+    "use": "F12"
+  },
+  {
+    "type": 6148,
+    "name": "Serpentis Shield",
+    "use": "F12"
+  },
+  {
+    "type": 8000033,
+    "name": "Sloth",
+    "use": "LSHIFT+5"
+  },
+  {
+    "type": 8000074,
+    "name": "ezi",
+    "use": "LSHIFT+4"
+  },
+  {
+    "type": 13612,
+    "name": "Battle focus",
+    "use": "LALT+2"
+  }
+]
