@@ -615,13 +615,3 @@ Termos de Serviço de jogos
 Leis de direitos autorais (DMCA, etc.)
 Leis de computação em alguns países
 Sempre verifique a legalidade em sua jurisdição antes de aplicar estas técnicas.
-
-
----
-
-Esses dois arquivos fornecem:
-
-1. **README.md**: Documentação completa do projeto, instalação, configuração e uso
-2. **REVERSE_ENGINEERING_GUIDE.md**: Guia detalhado de como encontrar offsets, com exemplos práticos e código
-
-Quer que eu adicione mais alguma seção ou detalhe específico?
