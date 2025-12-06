@@ -1,12 +1,12 @@
 package entity
 
 import (
-	"fmt"
 	"muletinha/config"
 	"muletinha/memory"
 	"sort"
 	"strings"
 	"unsafe"
+	"fmt"
 
 	"golang.org/x/sys/windows"
 )
@@ -23,6 +23,7 @@ type Entity struct {
 	VTable   uint32
 	IsPlayer bool
 	IsNPC    bool
+	IsMount bool
 }
 
 func GetLocalPlayer(handle windows.Handle, x2game uintptr) Entity {
@@ -46,7 +47,78 @@ func GetLocalPlayer(handle windows.Handle, x2game uintptr) Entity {
 	player.HP = memory.ReadU32(handle, uintptr(player.Address+config.OFF_HP_ENTITY))
 	player.MaxHP = GetMaxHP(handle, player.Address)
 
+	GetPlayerMount(handle, x2game)
 	return player
+}
+
+func GetPlayerMount(handle windows.Handle, x2game uintptr) Entity {
+    var mount Entity
+    
+    // x2game.dll+0050073C -> [+0x28] -> [+0x4] -> Mount Entity
+    ptr1 := memory.ReadU32(handle, x2game+config.PTR_MOUNT_BASE)
+    fmt.Printf("DEBUG: ptr1=0x%08X\n", ptr1)
+    
+    // ptr1 pode ser endereço de stack (baixo), não usa IsValidPtr
+    if ptr1 == 0 {
+        return mount
+    }
+    
+    ptr2 := memory.ReadU32(handle, uintptr(ptr1+config.OFF_MOUNT_PTR1))
+    fmt.Printf("DEBUG: ptr2=0x%08X\n", ptr2)
+    
+    if ptr2 == 0 {
+        return mount
+    }
+    
+    mountAddr := memory.ReadU32(handle, uintptr(ptr2+config.OFF_MOUNT_PTR2))
+    fmt.Printf("DEBUG: mountAddr=0x%08X\n", mountAddr)
+    
+    if mountAddr == 0 {
+        return mount
+    }
+    
+    // Agora sim valida a entidade
+    hp := memory.ReadU32(handle, uintptr(mountAddr+config.OFF_HP_ENTITY))
+    fmt.Printf("DEBUG: HP=%d\n", hp)
+    
+    if hp == 0 || hp > 10000000 {
+        return mount
+    }
+    
+    mount.Address = mountAddr
+    mount.VTable = memory.ReadU32(handle, uintptr(mountAddr))
+    mount.Name = GetEntityName(handle, mountAddr)
+    mount.PosX = memory.ReadF32(handle, uintptr(mountAddr+config.OFF_POS_X))
+    mount.PosY = memory.ReadF32(handle, uintptr(mountAddr+config.OFF_POS_Y))
+    mount.PosZ = memory.ReadF32(handle, uintptr(mountAddr+config.OFF_POS_Z))
+    mount.HP = hp
+    mount.MaxHP = GetMaxHP(handle, mountAddr)
+    mount.IsMount = true
+    
+    fmt.Printf("DEBUG: Mount OK! Name=%s HP=%d\n", mount.Name, mount.HP)
+    
+    return mount
+}
+
+func HasMount(handle windows.Handle, x2game uintptr) bool {
+    ptr1 := memory.ReadU32(handle, x2game+config.PTR_MOUNT_BASE)
+    if !memory.IsValidPtr(ptr1) {
+        return false
+    }
+    
+    ptr2 := memory.ReadU32(handle, uintptr(ptr1+config.OFF_MOUNT_PTR1))
+    if !memory.IsValidPtr(ptr2) {
+        return false
+    }
+    
+    mountAddr := memory.ReadU32(handle, uintptr(ptr2+config.OFF_MOUNT_PTR2))
+    if !memory.IsValidPtr(mountAddr) {
+        return false
+    }
+    
+    // Verifica se é uma entidade válida
+    hp := memory.ReadU32(handle, uintptr(mountAddr+config.OFF_HP_ENTITY))
+    return hp > 0
 }
 
 func GetMaxHP(handle windows.Handle, entityAddr uint32) uint32 {
@@ -195,9 +267,6 @@ func FindAllEntities(handle windows.Handle, player Entity, maxDistance float32) 
 		return entities[i].Distance < entities[j].Distance
 	})
 
-	// ADICIONA DEBUG AQUI
-	DebugPrintEntities(entities)
-
 	return entities
 }
 
@@ -224,68 +293,5 @@ func FilterEntities(entities []Entity, player Entity) []Entity {
 		filtered = append(filtered, e)
 	}
 
-	// DEBUG das entidades filtradas também
-	fmt.Println("\n=== ENTIDADES FILTRADAS ===")
-	DebugPrintEntities(filtered)
-
 	return filtered
-}
-
-// DebugPrintEntities imprime informações de debug das entidades
-func DebugPrintEntities(entities []Entity) {
-	fmt.Println("\n========================================")
-	fmt.Println("DEBUG: Entidades Encontradas")
-	fmt.Println("========================================")
-	
-	if len(entities) == 0 {
-		fmt.Println("Nenhuma entidade encontrada")
-		return
-	}
-	
-	for i, e := range entities {
-		fmt.Println("----------------------------------------")
-		fmt.Printf("[%d] Entidade:\n", i+1)
-		fmt.Printf("  Endereço: 0x%08X\n", e.Address)
-		fmt.Printf("  Nome: %s\n", e.Name)
-		fmt.Printf("  HP: %d / %d", e.HP, e.MaxHP)
-		
-		// Calcula porcentagem de HP
-		if e.MaxHP > 0 {
-			percentage := float32(e.HP) * 100 / float32(e.MaxHP)
-			fmt.Printf(" (%.1f%%)", percentage)
-		}
-		fmt.Println()
-		
-		fmt.Printf("  Posição: X=%.2f, Y=%.2f, Z=%.2f\n", e.PosX, e.PosY, e.PosZ)
-		fmt.Printf("  Distância: %.2f metros\n", e.Distance)
-		fmt.Printf("  VTable: 0x%08X\n", e.VTable)
-		
-		entityType := "Unknown"
-		if e.IsPlayer {
-			entityType = "Player"
-		} else if e.IsNPC {
-			entityType = "NPC"
-		}
-		fmt.Printf("  Tipo: %s\n", entityType)
-	}
-	
-	fmt.Println("========================================")
-	fmt.Printf("Total de entidades: %d\n", len(entities))
-	fmt.Println("========================================\n")
-}
-
-// Função adicional para debug compacto (uma linha por entidade)
-func DebugPrintEntitiesCompact(entities []Entity) {
-	fmt.Println("\n=== DEBUG COMPACTO ===")
-	fmt.Printf("%-10s | %-20s | %-10s | %-30s | %-10s\n", 
-		"ENDEREÇO", "NOME", "HP", "POSIÇÃO (X,Y,Z)", "DISTÂNCIA")
-	fmt.Println(strings.Repeat("-", 90))
-	
-	for _, e := range entities {
-		hpInfo := fmt.Sprintf("%d/%d", e.HP, e.MaxHP)
-		posInfo := fmt.Sprintf("%.1f, %.1f, %.1f", e.PosX, e.PosY, e.PosZ)
-		fmt.Printf("0x%08X | %-20s | %-10s | %-30s | %.2fm\n",
-			e.Address, e.Name, hpInfo, posInfo, e.Distance)
-	}
-	fmt.Printf("\nTotal: %d entidades\n", len(entities))
 }

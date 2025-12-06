@@ -31,6 +31,7 @@ type Game struct {
 	handle      windows.Handle
 	x2game      uintptr
 	localPlayer entity.Entity
+	playerMount entity.Entity
 	entities    []entity.Entity
 	mutex       sync.RWMutex
 	connected   bool
@@ -598,6 +599,7 @@ func (g *Game) Update() error {
 	// Player info e potions - a cada 5 frames
 	if g.frameCount%5 == 0 {
 		g.localPlayer = entity.GetLocalPlayer(g.handle, g.x2game)
+		g.playerMount = entity.GetPlayerMount(g.handle, g.x2game)
 		g.checkAndUsePotion()
 	}
 
@@ -695,6 +697,12 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	info := fmt.Sprintf("%s | (%.0f, %.0f, %.0f)", localPlayer.Name, localPlayer.PosX, localPlayer.PosY, localPlayer.PosZ)
 	ebitenutil.DebugPrintAt(screen, info, 10, 10)
 	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("Players:%d NPCs:%d", playerCount, npcCount), 10, 26)
+
+	if g.playerMount.Address != 0 {
+		mountInfo := fmt.Sprintf("Mount: %s | HP: %d/%d | 0x%08X", 
+			g.playerMount.Name, g.playerMount.HP, g.playerMount.MaxHP, g.playerMount.Address)
+		ebitenutil.DebugPrintAt(screen, mountInfo, 10, 42)
+	}
 
 	// HP BAR
 	hpPercent := float32(0)
