@@ -9,6 +9,7 @@ import (
 	"muletinha/memory"
 	"muletinha/monitor"
 	"muletinha/process"
+	"muletinha/mount"
 	"muletinha/ui"
 	"strings"
 	"sync"
@@ -30,12 +31,14 @@ var (
 type Game struct {
 	handle      windows.Handle
 	x2game      uintptr
+	icudt42     uintptr
 	localPlayer entity.Entity
 	playerMount entity.Entity
 	entities    []entity.Entity
 	mutex       sync.RWMutex
 	connected   bool
 	frameCount  int
+	mountConfig   *mount.MountConfig
 
 	autoPotEnabled   bool
 	masterToggleBtn  *ui.Button
@@ -70,6 +73,7 @@ func NewGame() *Game {
 		debuffMonitor:      monitor.NewDebuffMonitor(),
 		buffMonitor:        monitor.NewBuffMonitor(),
 		entityScanInterval: 1000 * time.Millisecond,
+		mountConfig: mount.NewMountConfig(),
 		entities:           make([]entity.Entity, 0, 100),
 		masterToggleBtn: &ui.Button{
 			X: 10, Y: panelY, W: 100, H: 22,
@@ -140,8 +144,16 @@ func NewGame() *Game {
 		return g
 	}
 
+	icudt42, err := process.GetModuleBase(pid, "icudt42.dll")
+	if err != nil {
+		fmt.Println("icudt42.dll não encontrado!")
+		windows.CloseHandle(handle)
+		return g
+	}
+
 	g.handle = handle
 	g.x2game = x2game
+	g.icudt42 = icudt42 
 	g.connected = true
 
 	return g
@@ -478,6 +490,7 @@ func (g *Game) handleInput() {
 	g.buffBreakBtn.Hovered = g.buffBreakBtn.Contains(g.mouseX, g.mouseY)
 	g.desertFire.ToggleBtn.Hovered = g.desertFire.ToggleBtn.Contains(g.mouseX, g.mouseY)
 	g.nuiNova.ToggleBtn.Hovered = g.nuiNova.ToggleBtn.Contains(g.mouseX, g.mouseY)
+	
 
 	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 		if g.masterToggleBtn.Contains(g.mouseX, g.mouseY) {
@@ -599,7 +612,9 @@ func (g *Game) Update() error {
 	// Player info e potions - a cada 5 frames
 	if g.frameCount%5 == 0 {
 		g.localPlayer = entity.GetLocalPlayer(g.handle, g.x2game)
-		g.playerMount = entity.GetPlayerMount(g.handle, g.x2game)
+		g.playerMount = entity.GetPlayerMount(g.handle, g.icudt42)
+
+		g.handleAutoMount()
 		g.checkAndUsePotion()
 	}
 
@@ -699,8 +714,8 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("Players:%d NPCs:%d", playerCount, npcCount), 10, 26)
 
 	if g.playerMount.Address != 0 {
-		mountInfo := fmt.Sprintf("Mount: %s | HP: %d/%d | 0x%08X", 
-			g.playerMount.Name, g.playerMount.HP, g.playerMount.MaxHP, g.playerMount.Address)
+		mountInfo := fmt.Sprintf("Mount: 0x%X | HP: %d/%d", 
+			g.playerMount.Address, g.playerMount.HP, g.playerMount.MaxHP)
 		ebitenutil.DebugPrintAt(screen, mountInfo, 10, 42)
 	}
 
@@ -961,4 +976,40 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
 	return config.SCREEN_WIDTH, config.SCREEN_HEIGHT
+}
+
+
+func (g *Game) handleAutoMount() {
+	g.debugMountOwner()
+	g.mountConfig.Update(g.playerMount.Address, g.playerMount.Name)
+}
+
+func (g *Game) debugMountOwner() {
+	if g.playerMount.Address == 0 || g.localPlayer.Address == 0 {
+		fmt.Println("[Mount] Precisa estar montado")
+		return
+	}
+
+	mountAddr := uintptr(g.playerMount.Address)
+	playerAddr := g.localPlayer.Address
+	
+	fmt.Printf("\n[Mount Owner Search] mount=0x%X player=0x%X\n", mountAddr, playerAddr)
+	fmt.Println("Procurando por ponteiro pro player...")
+
+	// Procura pelo endereço do player na estrutura da mount
+	for offset := uint32(0); offset < 0x200; offset += 0x4 {
+		val := memory.ReadU32(g.handle, mountAddr+uintptr(offset))
+
+		if val == playerAddr {
+			fmt.Printf("★ ENCONTRADO! Offset 0x%X = 0x%X (player address)\n", offset, val)
+		}
+	}
+
+	fmt.Println("\nPrimeiros offsets da mount:")
+	for offset := uint32(0); offset < 0x80; offset += 0x4 {
+		val := memory.ReadU32(g.handle, mountAddr+uintptr(offset))
+		if val != 0 {
+			fmt.Printf("0x%02X: 0x%08X\n", offset, val)
+		}
+	}
 }

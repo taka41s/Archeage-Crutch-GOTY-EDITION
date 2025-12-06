@@ -8,9 +8,11 @@ const (
 	PTR_ENTITY       = 0x10
 	OFF_ENTITY_BASE  = 0x38
 
-    PTR_MOUNT_BASE = 0x0050073C
-    OFF_MOUNT_PTR1 = 0x28
-    OFF_MOUNT_PTR2 = 0x4
+	PTR_MOUNT_BASE   uintptr = 0x000930BC
+	OFF_MOUNT_PTR1   uint32  = 0x3C
+	OFF_MOUNT_PTR2   uint32  = 0x4
+	OFF_MOUNT_FLAG   uint32  = 0xAD4  // 1 = montado, 0 = desmontado
+
 	OFF_TO_ESI       = 0x4698
 	OFF_TO_STATS     = 0x10
 	OFF_MAXHP        = 0x420

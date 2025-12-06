@@ -47,57 +47,57 @@ func GetLocalPlayer(handle windows.Handle, x2game uintptr) Entity {
 	player.HP = memory.ReadU32(handle, uintptr(player.Address+config.OFF_HP_ENTITY))
 	player.MaxHP = GetMaxHP(handle, player.Address)
 
-	GetPlayerMount(handle, x2game)
 	return player
 }
 
-func GetPlayerMount(handle windows.Handle, x2game uintptr) Entity {
-    var mount Entity
-    
-    // x2game.dll+0050073C -> [+0x28] -> [+0x4] -> Mount Entity
-    ptr1 := memory.ReadU32(handle, x2game+config.PTR_MOUNT_BASE)
-    fmt.Printf("DEBUG: ptr1=0x%08X\n", ptr1)
-    
-    // ptr1 pode ser endereço de stack (baixo), não usa IsValidPtr
-    if ptr1 == 0 {
-        return mount
-    }
-    
-    ptr2 := memory.ReadU32(handle, uintptr(ptr1+config.OFF_MOUNT_PTR1))
-    fmt.Printf("DEBUG: ptr2=0x%08X\n", ptr2)
-    
-    if ptr2 == 0 {
-        return mount
-    }
-    
-    mountAddr := memory.ReadU32(handle, uintptr(ptr2+config.OFF_MOUNT_PTR2))
-    fmt.Printf("DEBUG: mountAddr=0x%08X\n", mountAddr)
-    
-    if mountAddr == 0 {
-        return mount
-    }
-    
-    // Agora sim valida a entidade
-    hp := memory.ReadU32(handle, uintptr(mountAddr+config.OFF_HP_ENTITY))
-    fmt.Printf("DEBUG: HP=%d\n", hp)
-    
-    if hp == 0 || hp > 10000000 {
-        return mount
-    }
-    
-    mount.Address = mountAddr
-    mount.VTable = memory.ReadU32(handle, uintptr(mountAddr))
-    mount.Name = GetEntityName(handle, mountAddr)
-    mount.PosX = memory.ReadF32(handle, uintptr(mountAddr+config.OFF_POS_X))
-    mount.PosY = memory.ReadF32(handle, uintptr(mountAddr+config.OFF_POS_Y))
-    mount.PosZ = memory.ReadF32(handle, uintptr(mountAddr+config.OFF_POS_Z))
-    mount.HP = hp
-    mount.MaxHP = GetMaxHP(handle, mountAddr)
-    mount.IsMount = true
-    
-    fmt.Printf("DEBUG: Mount OK! Name=%s HP=%d\n", mount.Name, mount.HP)
-    
-    return mount
+// GetPlayerMount via icudt42.dll
+func GetPlayerMount(handle windows.Handle, icudt42 uintptr) Entity {
+	var mount Entity
+
+	// icudt42.dll+930BC → [+0x3C] → [+0x4] → Entity
+	ptr1 := memory.ReadU32(handle, icudt42+config.PTR_MOUNT_BASE)
+	if ptr1 == 0 {
+		return mount
+	}
+
+	ptr2 := memory.ReadU32(handle, uintptr(ptr1)+uintptr(config.OFF_MOUNT_PTR1))
+	if ptr2 == 0 {
+		return mount
+	}
+
+	mountAddr := memory.ReadU32(handle, uintptr(ptr2)+uintptr(config.OFF_MOUNT_PTR2))
+	if mountAddr == 0 {
+		return mount
+	}
+
+	// Verifica flag de montado
+	flag := memory.ReadU32(handle, uintptr(mountAddr)+uintptr(config.OFF_MOUNT_FLAG))
+	if flag == 0 {
+		return mount // Desmontado/dismissed
+	}
+
+	hp := memory.ReadU32(handle, uintptr(mountAddr)+config.OFF_HP_ENTITY)
+	maxHP := memory.ReadU32(handle, uintptr(mountAddr)+config.OFF_HP_ENTITY+4)
+
+	// Lê nome - testa alguns offsets comuns
+	nameAddr := memory.ReadU32(handle, uintptr(mountAddr)+0x54)
+	name := ""
+	if nameAddr != 0 && memory.IsValidPtr(nameAddr) {
+		name = memory.ReadString(handle, uintptr(nameAddr), 32)
+	}
+
+	// DEBUG - mostra o nome
+	if name != "" {
+		fmt.Printf("[Mount] Nome: %s\n", name)
+	}
+
+	mount.Address = mountAddr
+	mount.HP = hp
+	mount.MaxHP = maxHP
+	mount.Name = name
+	mount.IsMount = true
+
+	return mount
 }
 
 func HasMount(handle windows.Handle, x2game uintptr) bool {
