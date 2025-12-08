@@ -15,11 +15,6 @@
     "use": "F12"
   },
   {
-    "type": 8000033,
-    "name": "Sloth",
-    "use": "LSHIFT+5"
-  },
-  {
     "type": 8000074,
     "name": "ezi",
     "use": "LSHIFT+4"

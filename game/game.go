@@ -229,38 +229,14 @@ func (g *Game) findBuffListFromPlayer() uintptr {
 		return 0
 	}
 
-	baseData := make([]byte, 0x5000)
-	if memory.ReadMemoryBytes(g.handle, uintptr(base), baseData) != nil {
+	listPtr := memory.ReadU32(g.handle, uintptr(base)+config.OFF_DEBUFF_PTR)
+	if !memory.IsValidPtr(listPtr) {
 		return 0
 	}
 
-	for off := uint32(0); off < 0x4800; off += 4 {
-		ptr := memory.BytesToUint32(baseData[off : off+4])
-		if !memory.IsValidPtr(ptr) {
-			continue
-		}
-
-		listData := make([]byte, 0x40)
-		if memory.ReadMemoryBytes(g.handle, uintptr(ptr), listData) != nil {
-			continue
-		}
-
-		count := memory.BytesToUint32(listData[config.BUFF_COUNT_OFF : config.BUFF_COUNT_OFF+4])
-		if count >= 1 && count <= 50 {
-			arrayStart := ptr + config.BUFF_ARRAY_OFF
-			firstBuffData := make([]byte, 0x10)
-			if memory.ReadMemoryBytes(g.handle, uintptr(arrayStart), firstBuffData) == nil {
-				buffID := memory.BytesToUint32(firstBuffData[config.BUFF_OFF_ID : config.BUFF_OFF_ID+4])
-				if buffID > 1000 && buffID < 9999999 {
-					g.cachedBuffListAddr = uintptr(ptr)
-					g.lastBuffCheck = time.Now()
-					return g.cachedBuffListAddr
-				}
-			}
-		}
-	}
-
-	return 0
+	g.cachedBuffListAddr = uintptr(listPtr)
+	g.lastBuffCheck = time.Now()
+	return g.cachedBuffListAddr
 }
 
 func (g *Game) updateBuffsInstant() {

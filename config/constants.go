@@ -17,13 +17,8 @@ const (
 	OFF_NAME_PTR1    = 0x0C
 	OFF_NAME_PTR2    = 0x1C
 
-	// Debuff offsets
-	OFF_DEBUFF_PTR   = 0x1898
-	OFF_DEBUFF_COUNT = 0x20
-	OFF_DEBUFF_ARRAY = 0xD30
-	DEBUFF_SIZE      = 0x68
+	OFF_DEBUFF_PTR = 0x1898
 
-	// Buff offsets
 	BUFF_COUNT_OFF = 0x20
 	BUFF_ARRAY_OFF = 0x28
 	BUFF_SIZE      = 0x68
@@ -31,6 +26,10 @@ const (
 	BUFF_OFF_ID    = 0x04
 	BUFF_OFF_DUR   = 0x30
 	BUFF_OFF_LEFT  = 0x34
+
+	OFF_DEBUFF_COUNT = 0xD28
+	OFF_DEBUFF_ARRAY = 0xD30
+	DEBUFF_SIZE      = 0x68
 )
 
 // Screen settings

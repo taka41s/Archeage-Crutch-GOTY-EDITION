@@ -1,7 +1,6 @@
 package entity
 
 import (
-	"fmt"
 	"muletinha/config"
 	"muletinha/memory"
 	"sort"
@@ -195,9 +194,6 @@ func FindAllEntities(handle windows.Handle, player Entity, maxDistance float32) 
 		return entities[i].Distance < entities[j].Distance
 	})
 
-	// ADICIONA DEBUG AQUI
-	DebugPrintEntities(entities)
-
 	return entities
 }
 
@@ -224,68 +220,5 @@ func FilterEntities(entities []Entity, player Entity) []Entity {
 		filtered = append(filtered, e)
 	}
 
-	// DEBUG das entidades filtradas também
-	fmt.Println("\n=== ENTIDADES FILTRADAS ===")
-	DebugPrintEntities(filtered)
-
 	return filtered
-}
-
-// DebugPrintEntities imprime informações de debug das entidades
-func DebugPrintEntities(entities []Entity) {
-	fmt.Println("\n========================================")
-	fmt.Println("DEBUG: Entidades Encontradas")
-	fmt.Println("========================================")
-	
-	if len(entities) == 0 {
-		fmt.Println("Nenhuma entidade encontrada")
-		return
-	}
-	
-	for i, e := range entities {
-		fmt.Println("----------------------------------------")
-		fmt.Printf("[%d] Entidade:\n", i+1)
-		fmt.Printf("  Endereço: 0x%08X\n", e.Address)
-		fmt.Printf("  Nome: %s\n", e.Name)
-		fmt.Printf("  HP: %d / %d", e.HP, e.MaxHP)
-		
-		// Calcula porcentagem de HP
-		if e.MaxHP > 0 {
-			percentage := float32(e.HP) * 100 / float32(e.MaxHP)
-			fmt.Printf(" (%.1f%%)", percentage)
-		}
-		fmt.Println()
-		
-		fmt.Printf("  Posição: X=%.2f, Y=%.2f, Z=%.2f\n", e.PosX, e.PosY, e.PosZ)
-		fmt.Printf("  Distância: %.2f metros\n", e.Distance)
-		fmt.Printf("  VTable: 0x%08X\n", e.VTable)
-		
-		entityType := "Unknown"
-		if e.IsPlayer {
-			entityType = "Player"
-		} else if e.IsNPC {
-			entityType = "NPC"
-		}
-		fmt.Printf("  Tipo: %s\n", entityType)
-	}
-	
-	fmt.Println("========================================")
-	fmt.Printf("Total de entidades: %d\n", len(entities))
-	fmt.Println("========================================\n")
-}
-
-// Função adicional para debug compacto (uma linha por entidade)
-func DebugPrintEntitiesCompact(entities []Entity) {
-	fmt.Println("\n=== DEBUG COMPACTO ===")
-	fmt.Printf("%-10s | %-20s | %-10s | %-30s | %-10s\n", 
-		"ENDEREÇO", "NOME", "HP", "POSIÇÃO (X,Y,Z)", "DISTÂNCIA")
-	fmt.Println(strings.Repeat("-", 90))
-	
-	for _, e := range entities {
-		hpInfo := fmt.Sprintf("%d/%d", e.HP, e.MaxHP)
-		posInfo := fmt.Sprintf("%.1f, %.1f, %.1f", e.PosX, e.PosY, e.PosZ)
-		fmt.Printf("0x%08X | %-20s | %-10s | %-30s | %.2fm\n",
-			e.Address, e.Name, hpInfo, posInfo, e.Distance)
-	}
-	fmt.Printf("\nTotal: %d entidades\n", len(entities))
 }
