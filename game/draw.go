@@ -507,3 +507,7 @@ func (g *Game) drawCenteredText(screen *ebiten.Image, text string, x, y int) {
 	textW := len(text) * 7
 	ebitenutil.DebugPrintAt(screen, text, x-textW/2, y)
 }
+
+func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
+	return config.SCREEN_WIDTH, config.SCREEN_HEIGHT
+}

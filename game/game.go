@@ -581,9 +581,6 @@ func (g *Game) Update() error {
 
 	if g.frameCount%5 == 0 {
 		g.localPlayer = entity.GetLocalPlayer(g.handle, g.x2game)
-		g.playerMount = entity.GetPlayerMount(g.handle, g.icudt42)
-
-		// g.handleAutoMount() DISABLED FOR NOW
 		g.checkAndUsePotion()
 	}
 
@@ -611,11 +608,3 @@ func (g *Game) Update() error {
 	return nil
 }
 
-func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
-	return config.SCREEN_WIDTH, config.SCREEN_HEIGHT
-}
-
-
-func (g *Game) handleAutoMount() {
-	g.mountConfig.Update(g.playerMount.Address, g.playerMount.Name)
-}
