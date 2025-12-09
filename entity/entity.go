@@ -6,7 +6,6 @@ import (
 	"sort"
 	"strings"
 	"unsafe"
-	"fmt"
 
 	"golang.org/x/sys/windows"
 )
@@ -48,77 +47,6 @@ func GetLocalPlayer(handle windows.Handle, x2game uintptr) Entity {
 	player.MaxHP = GetMaxHP(handle, player.Address)
 
 	return player
-}
-
-// GetPlayerMount via icudt42.dll
-func GetPlayerMount(handle windows.Handle, icudt42 uintptr) Entity {
-	var mount Entity
-
-	// icudt42.dll+930BC → [+0x3C] → [+0x4] → Entity
-	ptr1 := memory.ReadU32(handle, icudt42+config.PTR_MOUNT_BASE)
-	if ptr1 == 0 {
-		return mount
-	}
-
-	ptr2 := memory.ReadU32(handle, uintptr(ptr1)+uintptr(config.OFF_MOUNT_PTR1))
-	if ptr2 == 0 {
-		return mount
-	}
-
-	mountAddr := memory.ReadU32(handle, uintptr(ptr2)+uintptr(config.OFF_MOUNT_PTR2))
-	if mountAddr == 0 {
-		return mount
-	}
-
-	// Verifica flag de montado
-	flag := memory.ReadU32(handle, uintptr(mountAddr)+uintptr(config.OFF_MOUNT_FLAG))
-	if flag == 0 {
-		return mount // Desmontado/dismissed
-	}
-
-	hp := memory.ReadU32(handle, uintptr(mountAddr)+config.OFF_HP_ENTITY)
-	maxHP := memory.ReadU32(handle, uintptr(mountAddr)+config.OFF_HP_ENTITY+4)
-
-	// Lê nome - testa alguns offsets comuns
-	nameAddr := memory.ReadU32(handle, uintptr(mountAddr)+0x54)
-	name := ""
-	if nameAddr != 0 && memory.IsValidPtr(nameAddr) {
-		name = memory.ReadString(handle, uintptr(nameAddr), 32)
-	}
-
-	// DEBUG - mostra o nome
-	if name != "" {
-		fmt.Printf("[Mount] Nome: %s\n", name)
-	}
-
-	mount.Address = mountAddr
-	mount.HP = hp
-	mount.MaxHP = maxHP
-	mount.Name = name
-	mount.IsMount = true
-
-	return mount
-}
-
-func HasMount(handle windows.Handle, x2game uintptr) bool {
-    ptr1 := memory.ReadU32(handle, x2game+config.PTR_MOUNT_BASE)
-    if !memory.IsValidPtr(ptr1) {
-        return false
-    }
-    
-    ptr2 := memory.ReadU32(handle, uintptr(ptr1+config.OFF_MOUNT_PTR1))
-    if !memory.IsValidPtr(ptr2) {
-        return false
-    }
-    
-    mountAddr := memory.ReadU32(handle, uintptr(ptr2+config.OFF_MOUNT_PTR2))
-    if !memory.IsValidPtr(mountAddr) {
-        return false
-    }
-    
-    // Verifica se é uma entidade válida
-    hp := memory.ReadU32(handle, uintptr(mountAddr+config.OFF_HP_ENTITY))
-    return hp > 0
 }
 
 func GetMaxHP(handle windows.Handle, entityAddr uint32) uint32 {

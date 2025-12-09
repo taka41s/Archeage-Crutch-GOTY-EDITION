@@ -617,35 +617,5 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
 
 
 func (g *Game) handleAutoMount() {
-	g.debugMountOwner()
 	g.mountConfig.Update(g.playerMount.Address, g.playerMount.Name)
-}
-
-func (g *Game) debugMountOwner() {
-	if g.playerMount.Address == 0 || g.localPlayer.Address == 0 {
-		fmt.Println("[Mount] Precisa estar montado")
-		return
-	}
-
-	mountAddr := uintptr(g.playerMount.Address)
-	playerAddr := g.localPlayer.Address
-	
-	fmt.Printf("\n[Mount Owner Search] mount=0x%X player=0x%X\n", mountAddr, playerAddr)
-	fmt.Println("Procurando por ponteiro pro player...")
-
-	for offset := uint32(0); offset < 0x200; offset += 0x4 {
-		val := memory.ReadU32(g.handle, mountAddr+uintptr(offset))
-
-		if val == playerAddr {
-			fmt.Printf("★ ENCONTRADO! Offset 0x%X = 0x%X (player address)\n", offset, val)
-		}
-	}
-
-	fmt.Println("\nPrimeiros offsets da mount:")
-	for offset := uint32(0); offset < 0x80; offset += 0x4 {
-		val := memory.ReadU32(g.handle, mountAddr+uintptr(offset))
-		if val != 0 {
-			fmt.Printf("0x%02X: 0x%08X\n", offset, val)
-		}
-	}
 }
