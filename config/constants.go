@@ -34,8 +34,8 @@ const (
 
 // Screen settings
 const (
-    SCREEN_WIDTH  = 1024
-    SCREEN_HEIGHT = 768
+    SCREEN_WIDTH  = 1920
+    SCREEN_HEIGHT = 1080
 
     RADAR_RADIUS  = 280
     RADAR_RANGE   = 1000.0

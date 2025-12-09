@@ -10,15 +10,12 @@ import (
 	"muletinha/monitor"
 	"muletinha/process"
 	"muletinha/ui"
-	"strings"
 	"sync"
 	"time"
 	"unsafe"
 
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
-	"github.com/hajimehoshi/ebiten/v2/vector"
 	"golang.org/x/sys/windows"
 )
 
@@ -61,8 +58,6 @@ type Game struct {
 }
 
 func NewGame() *Game {
-	panelY := float32(config.SCREEN_HEIGHT - 200)
-	sliderW := float32(200)
 
 	g := &Game{
 		autoPotEnabled:     true,
@@ -71,23 +66,23 @@ func NewGame() *Game {
 		entityScanInterval: 1000 * time.Millisecond,
 		entities:           make([]entity.Entity, 0, 100),
 		masterToggleBtn: &ui.Button{
-			X: 10, Y: panelY, W: 100, H: 22,
+			X: 25, Y: 0, W: 100, H: 22,
 			Label: "AutoPot:ON",
 		},
 		debuffMonitorBtn: &ui.Button{
-			X: 115, Y: panelY, W: 100, H: 22,
+			X: 130, Y: 0, W: 100, H: 22,
 			Label: "Debuff:ON",
 		},
 		ccBreakBtn: &ui.Button{
-			X: 220, Y: panelY, W: 100, H: 22,
+			X: 235, Y: 0, W: 100, H: 22,
 			Label: "CCBreak:ON",
 		},
 		buffMonitorBtn: &ui.Button{
-			X: 325, Y: panelY, W: 100, H: 22,
+			X: 340, Y: 0, W: 100, H: 22,
 			Label: "Buff:ON",
 		},
 		buffBreakBtn: &ui.Button{
-			X: 430, Y: panelY, W: 100, H: 22,
+			X: 445, Y: 0, W: 100, H: 22,
 			Label: "BuffBrk:ON",
 		},
 		desertFire: &ui.PotionConfig{
@@ -97,12 +92,12 @@ func NewGame() *Game {
 			Cooldown:  1500 * time.Millisecond,
 			Enabled:   true,
 			Slider: &ui.Slider{
-				X: 120, Y: panelY + 35, W: sliderW, H: 12,
+				X: 120, Y: 0, W: 250, H: 14,
 				Value: 0.60,
 				Color: color.RGBA{255, 150, 50, 255},
 				Label: "Desert Fire (F1)",
 			},
-			ToggleBtn: &ui.Button{X: 330, Y: panelY + 32, W: 40, H: 18, Label: "ON"},
+			ToggleBtn: &ui.Button{X: 380, Y: 0, W: 50, H: 20, Label: "ON"},
 		},
 		nuiNova: &ui.PotionConfig{
 			Name:      "Nui's Nova",
@@ -111,12 +106,12 @@ func NewGame() *Game {
 			Cooldown:  30 * time.Second,
 			Enabled:   true,
 			Slider: &ui.Slider{
-				X: 120, Y: panelY + 70, W: sliderW, H: 12,
+				X: 120, Y: 0, W: 250, H: 14,
 				Value: 0.20,
 				Color: color.RGBA{150, 100, 255, 255},
 				Label: "Nui's Nova (F2)",
 			},
-			ToggleBtn: &ui.Button{X: 330, Y: panelY + 67, W: 40, H: 18, Label: "ON"},
+			ToggleBtn: &ui.Button{X: 380, Y: 0, W: 50, H: 20, Label: "ON"},
 		},
 	}
 
@@ -600,331 +595,6 @@ func (g *Game) Update() error {
 	}
 
 	return nil
-}
-
-func (g *Game) Draw(screen *ebiten.Image) {
-	screen.Fill(color.RGBA{20, 25, 30, 255})
-
-	centerX := float32(config.SCREEN_WIDTH / 2)
-	centerY := float32(160)
-
-	// RADAR
-	ui.DrawCircle(screen, centerX, centerY, config.RADAR_RADIUS, color.RGBA{40, 45, 55, 255})
-	ui.DrawCircle(screen, centerX, centerY, config.RADAR_RADIUS*0.66, color.RGBA{35, 40, 50, 255})
-	ui.DrawCircle(screen, centerX, centerY, config.RADAR_RADIUS*0.33, color.RGBA{30, 35, 45, 255})
-	vector.StrokeLine(screen, centerX-config.RADAR_RADIUS, centerY, centerX+config.RADAR_RADIUS, centerY, 1, color.RGBA{40, 45, 55, 255}, false)
-	vector.StrokeLine(screen, centerX, centerY-config.RADAR_RADIUS, centerX, centerY+config.RADAR_RADIUS, 1, color.RGBA{40, 45, 55, 255}, false)
-	vector.DrawFilledCircle(screen, centerX, centerY, 5, color.RGBA{0, 255, 100, 255}, false)
-
-	if !g.connected {
-		ebitenutil.DebugPrintAt(screen, "ArcheAge não conectado!", 10, 10)
-		return
-	}
-
-	g.mutex.RLock()
-	localPlayer := g.localPlayer
-	entities := make([]entity.Entity, len(g.entities))
-	copy(entities, g.entities)
-	g.mutex.RUnlock()
-
-	if localPlayer.Address == 0 {
-		ebitenutil.DebugPrintAt(screen, "Aguardando LocalPlayer...", 10, 10)
-		return
-	}
-
-	// Radar entities
-	scale := float32(config.RADAR_RADIUS) / float32(config.RADAR_RANGE)
-	playerCount := 0
-	npcCount := 0
-
-	for _, e := range entities {
-		if e.Distance > config.RADAR_RANGE {
-			continue
-		}
-		dx := e.PosX - localPlayer.PosX
-		dy := e.PosY - localPlayer.PosY
-		radarX := centerX + dx*scale
-		radarY := centerY - dy*scale
-
-		distFromCenter := float32(0)
-		distFromCenter = (radarX-centerX)*(radarX-centerX) + (radarY-centerY)*(radarY-centerY)
-		if distFromCenter > config.RADAR_RADIUS*config.RADAR_RADIUS {
-			continue
-		}
-
-		var dotColor color.RGBA
-		if e.IsPlayer {
-			dotColor = color.RGBA{255, 60, 60, 255}
-			playerCount++
-		} else {
-			dotColor = color.RGBA{255, 220, 50, 255}
-			npcCount++
-		}
-		vector.DrawFilledCircle(screen, radarX, radarY, 4, dotColor, false)
-
-		if e.Distance < 60 {
-			ebitenutil.DebugPrintAt(screen, ui.TruncStr(e.Name, 8), int(radarX)+6, int(radarY)-4)
-		}
-	}
-
-	// Player info
-	info := fmt.Sprintf("%s | (%.0f, %.0f, %.0f)", localPlayer.Name, localPlayer.PosX, localPlayer.PosY, localPlayer.PosZ)
-	ebitenutil.DebugPrintAt(screen, info, 10, 10)
-	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("Players:%d NPCs:%d", playerCount, npcCount), 10, 26)
-
-	// HP BAR
-	hpPercent := float32(0)
-	if localPlayer.MaxHP > 0 {
-		hpPercent = float32(localPlayer.HP) / float32(localPlayer.MaxHP)
-	}
-
-	barWidth := float32(380)
-	barHeight := float32(22)
-	barX := float32(config.SCREEN_WIDTH/2) - barWidth/2
-	barY := float32(360)
-
-	vector.DrawFilledRect(screen, barX, barY, barWidth, barHeight, color.RGBA{30, 30, 30, 255}, false)
-
-	hpColor := color.RGBA{50, 200, 80, 255}
-	if hpPercent <= g.nuiNova.Slider.Value {
-		hpColor = color.RGBA{255, 50, 50, 255}
-	} else if hpPercent <= g.desertFire.Slider.Value {
-		hpColor = color.RGBA{255, 180, 50, 255}
-	}
-	vector.DrawFilledRect(screen, barX, barY, barWidth*hpPercent, barHeight, hpColor, false)
-
-	dfX := barX + barWidth*g.desertFire.Slider.Value
-	vector.StrokeLine(screen, dfX, barY, dfX, barY+barHeight, 2, color.RGBA{255, 150, 50, 200}, false)
-	nnX := barX + barWidth*g.nuiNova.Slider.Value
-	vector.StrokeLine(screen, nnX, barY, nnX, barY+barHeight, 2, color.RGBA{150, 100, 255, 200}, false)
-	vector.StrokeRect(screen, barX, barY, barWidth, barHeight, 1, color.RGBA{80, 80, 80, 255}, false)
-
-	hpText := fmt.Sprintf("%d/%d (%.0f%%)", localPlayer.HP, localPlayer.MaxHP, hpPercent*100)
-	ebitenutil.DebugPrintAt(screen, hpText, int(barX)+int(barWidth/2)-50, int(barY)+5)
-
-	// CC STATUS
-	sectionY := int(barY) + 35
-
-	ccColor := color.RGBA{150, 50, 50, 255}
-	if g.debuffMonitor.CCWhitelist.Enabled {
-		ccColor = color.RGBA{50, 200, 50, 255}
-	}
-	vector.DrawFilledRect(screen, barX, float32(sectionY), 14, 14, ccColor, false)
-	ebitenutil.DebugPrintAt(screen, fmt.Sprintf(" CC Break: %d | Buff Break: %d",
-		g.debuffMonitor.CCWhitelist.Reactions, g.buffMonitor.Whitelist.Reactions), int(barX)+16, sectionY)
-	sectionY += 20
-
-	// BUFFS Section
-	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("--- Buffs (%d) ---", g.buffMonitor.RawCount), int(barX), sectionY)
-	sectionY += 16
-
-	if len(g.buffMonitor.Buffs) == 0 {
-		ebitenutil.DebugPrintAt(screen, "(none)", int(barX), sectionY)
-		sectionY += 14
-	} else {
-		for _, b := range g.buffMonitor.Buffs {
-			barColor := color.RGBA{50, 100, 50, 255}
-			if b.Name != "" {
-				barColor = color.RGBA{200, 150, 50, 255}
-			}
-
-			dbBarW := float32(100)
-			dbBarH := float32(10)
-			pct := float64(0)
-			if b.Duration > 0 {
-				pct = float64(b.TimeLeft) / float64(b.Duration) * 100
-				if pct > 100 {
-					pct = 100
-				}
-			}
-
-			vector.DrawFilledRect(screen, barX, float32(sectionY), dbBarW, dbBarH, color.RGBA{40, 40, 40, 255}, false)
-			vector.DrawFilledRect(screen, barX, float32(sectionY), dbBarW*float32(pct/100), dbBarH, barColor, false)
-
-			text := fmt.Sprintf("ID:%-5d", b.ID)
-			if b.Name != "" {
-				text = fmt.Sprintf("[%s]", b.Name)
-			}
-			if b.Duration > 0 {
-				text += fmt.Sprintf(" %.1fs", float64(b.TimeLeft)/1000)
-			}
-			ebitenutil.DebugPrintAt(screen, text, int(barX)+110, sectionY-1)
-			sectionY += 14
-		}
-	}
-
-	// Debuffs Section
-	sectionY += 4
-	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("--- Debuffs (%d) ---", g.debuffMonitor.RawCount), int(barX), sectionY)
-	sectionY += 16
-
-	if len(g.debuffMonitor.Debuffs) == 0 {
-		ebitenutil.DebugPrintAt(screen, "(none)", int(barX), sectionY)
-		sectionY += 14
-	} else {
-		for _, d := range g.debuffMonitor.Debuffs {
-			pct := float64(d.DurLeft) / float64(d.DurMax) * 100
-			if pct > 100 {
-				pct = 100
-			}
-
-			barColor := color.RGBA{100, 100, 100, 255}
-			if d.CCName != "" {
-				barColor = color.RGBA{200, 50, 50, 255}
-			}
-
-			dbBarW := float32(100)
-			dbBarH := float32(10)
-			vector.DrawFilledRect(screen, barX, float32(sectionY), dbBarW, dbBarH, color.RGBA{40, 40, 40, 255}, false)
-			vector.DrawFilledRect(screen, barX, float32(sectionY), dbBarW*float32(pct/100), dbBarH, barColor, false)
-
-			text := fmt.Sprintf("T:%-5d %.1fs", d.TypeID, float64(d.DurLeft)/1000)
-			if d.CCName != "" {
-				text = fmt.Sprintf("[%s] %.1fs", strings.ToUpper(d.CCName), float64(d.DurLeft)/1000)
-			}
-			ebitenutil.DebugPrintAt(screen, text, int(barX)+110, sectionY-1)
-			sectionY += 14
-		}
-	}
-
-	// Events
-	sectionY += 8
-	ebitenutil.DebugPrintAt(screen, "--- Events (!! = reacted) ---", int(barX), sectionY)
-	sectionY += 16
-
-	allEvents := make([]string, 0)
-
-	for _, ev := range g.debuffMonitor.Events {
-		prefix := ev.Type
-		if ev.Reacted {
-			prefix = "!!"
-		}
-		line := fmt.Sprintf("[%s] %s CC T:%d", ev.Time.Format("15:04:05"), prefix, ev.TypeID)
-		if ev.CCName != "" {
-			line += " " + ev.CCName
-		}
-		allEvents = append(allEvents, line)
-	}
-
-	for _, ev := range g.buffMonitor.Events {
-		prefix := ev.Type
-		if ev.Reacted {
-			prefix = "!!"
-		}
-		line := fmt.Sprintf("[%s] %s BF ID:%d", ev.Time.Format("15:04:05"), prefix, ev.ID)
-		if ev.Name != "" {
-			line += " " + ev.Name
-		}
-		allEvents = append(allEvents, line)
-	}
-
-	startIdx := 0
-	if len(allEvents) > 6 {
-		startIdx = len(allEvents) - 6
-	}
-	for i := startIdx; i < len(allEvents); i++ {
-		ebitenutil.DebugPrintAt(screen, ui.TruncStr(allEvents[i], 50), int(barX), sectionY)
-		sectionY += 13
-	}
-
-	// CONFIG PANEL
-	panelY := float32(config.SCREEN_HEIGHT - 200)
-	vector.DrawFilledRect(screen, 5, panelY-15, float32(config.SCREEN_WIDTH-10), 195, color.RGBA{25, 28, 35, 255}, false)
-	vector.StrokeRect(screen, 5, panelY-15, float32(config.SCREEN_WIDTH-10), 195, 1, color.RGBA{50, 55, 65, 255}, false)
-
-	ebitenutil.DebugPrintAt(screen, "=== CONFIG === [F3] CC Break | [F4] Buff Break", 10, int(panelY)-12)
-
-	// Buttons
-	btnColor := color.RGBA{40, 80, 40, 255}
-	hoverColor := color.RGBA{50, 100, 50, 255}
-	if !g.autoPotEnabled {
-		btnColor = color.RGBA{80, 40, 40, 255}
-		hoverColor = color.RGBA{100, 50, 50, 255}
-	}
-	g.masterToggleBtn.Draw(screen, btnColor, hoverColor)
-
-	dbBtnColor := color.RGBA{40, 40, 80, 255}
-	dbHoverColor := color.RGBA{50, 50, 100, 255}
-	if !g.debuffMonitor.Enabled {
-		dbBtnColor = color.RGBA{60, 40, 40, 255}
-		dbHoverColor = color.RGBA{80, 50, 50, 255}
-	}
-	g.debuffMonitorBtn.Draw(screen, dbBtnColor, dbHoverColor)
-
-	ccBtnColor := color.RGBA{80, 40, 80, 255}
-	ccHoverColor := color.RGBA{100, 50, 100, 255}
-	if !g.debuffMonitor.CCWhitelist.Enabled {
-		ccBtnColor = color.RGBA{60, 40, 40, 255}
-		ccHoverColor = color.RGBA{80, 50, 50, 255}
-	}
-	g.ccBreakBtn.Draw(screen, ccBtnColor, ccHoverColor)
-
-	buffBtnColor := color.RGBA{40, 80, 80, 255}
-	buffHoverColor := color.RGBA{50, 100, 100, 255}
-	if !g.buffMonitor.Enabled {
-		buffBtnColor = color.RGBA{60, 40, 40, 255}
-		buffHoverColor = color.RGBA{80, 50, 50, 255}
-	}
-	g.buffMonitorBtn.Draw(screen, buffBtnColor, buffHoverColor)
-
-	buffBrkColor := color.RGBA{80, 80, 40, 255}
-	buffBrkHover := color.RGBA{100, 100, 50, 255}
-	if !g.buffMonitor.Whitelist.Enabled {
-		buffBrkColor = color.RGBA{60, 40, 40, 255}
-		buffBrkHover = color.RGBA{80, 50, 50, 255}
-	}
-	g.buffBreakBtn.Draw(screen, buffBrkColor, buffBrkHover)
-
-	// Sliders
-	g.desertFire.Slider.Draw(screen)
-	dfBtnColor := color.RGBA{60, 80, 40, 255}
-	dfHoverColor := color.RGBA{80, 100, 50, 255}
-	if !g.desertFire.Enabled {
-		dfBtnColor = color.RGBA{60, 50, 50, 255}
-	}
-	g.desertFire.ToggleBtn.Draw(screen, dfBtnColor, dfHoverColor)
-	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("Used:%d", g.desertFire.UseCount), 380, int(g.desertFire.Slider.Y)-3)
-
-	g.nuiNova.Slider.Draw(screen)
-	nnBtnColor := color.RGBA{50, 40, 80, 255}
-	nnHoverColor := color.RGBA{70, 50, 100, 255}
-	if !g.nuiNova.Enabled {
-		nnBtnColor = color.RGBA{50, 45, 55, 255}
-	}
-	g.nuiNova.ToggleBtn.Draw(screen, nnBtnColor, nnHoverColor)
-	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("Used:%d", g.nuiNova.UseCount), 380, int(g.nuiNova.Slider.Y)-3)
-
-	// Whitelists info
-	wlY := int(panelY) + 95
-	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("CC Whitelist: %d | Buff Whitelist: %d",
-		len(g.debuffMonitor.CCWhitelist.Entries), len(g.buffMonitor.Whitelist.Entries)), 10, wlY)
-	wlY += 14
-	ebitenutil.DebugPrintAt(screen, "Teclas: F1, SHIFT+1, CTRL+ALT+F1...", 10, wlY)
-
-	// Entity List
-	listX := config.SCREEN_WIDTH - 180
-	listY := 50
-	ebitenutil.DebugPrintAt(screen, "--- Nearby ---", listX, listY)
-	listY += 14
-
-	for i, e := range entities {
-		if i >= 8 {
-			ebitenutil.DebugPrintAt(screen, fmt.Sprintf("+%d more", len(entities)-8), listX, listY)
-			break
-		}
-		typeColor := color.RGBA{255, 220, 50, 255}
-		typeChar := "N"
-		if e.IsPlayer {
-			typeColor = color.RGBA{255, 60, 60, 255}
-			typeChar = "P"
-		}
-		vector.DrawFilledCircle(screen, float32(listX-8), float32(listY+5), 3, typeColor, false)
-		ebitenutil.DebugPrintAt(screen, fmt.Sprintf("[%s] %-8s %.0fm", typeChar, ui.TruncStr(e.Name, 8), e.Distance), listX, listY)
-		listY += 13
-	}
-
-	// FPS
-	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("FPS: %.0f", ebiten.ActualFPS()), config.SCREEN_WIDTH-70, 10)
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
