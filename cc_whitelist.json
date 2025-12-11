@@ -58,5 +58,10 @@
     "type": 3601,
     "name": "Overrun",
     "use": "F10"
+  },
+  {
+    "type": 449,
+    "name": "Focal concusion",
+    "use": "F10"
   }
 ]

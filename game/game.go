@@ -159,7 +159,7 @@ func (g *Game) GetHandle() windows.Handle {
 }
 
 func sendKeyPotion(combo input.KeyCombo) {
-	input.SendKeyCombo(combo)
+	input.SendKey(combo.RawString)
 }
 
 func (g *Game) checkAndUsePotion() {

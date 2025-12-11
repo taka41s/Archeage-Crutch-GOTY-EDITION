@@ -156,7 +156,7 @@ func (wl *BuffWhitelist) ReactInstant(buffID uint32) (bool, string) {
 	}
 
 	wl.lastSpamTime = time.Now()
-	go input.SpamKeyCombo(entry.KeyCombo, wl.SpamCount, wl.SpamInterval)
+	go input.SpamKey(entry.KeyCombo.RawString, wl.SpamCount, wl.SpamInterval)  // <- aqui
 
 	wl.Reactions++
 	return true, entry.Name
@@ -266,7 +266,7 @@ func (wl *CCWhitelist) ReactInstant(typeID uint32) (bool, string) {
 	}
 
 	wl.lastSpamTime = time.Now()
-	go input.SpamKeyCombo(entry.KeyCombo, wl.SpamCount, wl.SpamInterval)
+	go input.SpamKey(entry.KeyCombo.RawString, wl.SpamCount, wl.SpamInterval)  // <- aqui
 
 	wl.Reactions++
 	return true, entry.Name
