@@ -18,6 +18,8 @@ type Entity struct {
 	PosZ     float32
 	HP       uint32
 	MaxHP    uint32
+	MP       uint32
+	MaxMP    uint32
 	Distance float32
 	VTable   uint32
 	IsPlayer bool
@@ -45,8 +47,51 @@ func GetLocalPlayer(handle windows.Handle, x2game uintptr) Entity {
 	player.PosY = memory.ReadF32(handle, uintptr(player.Address+config.OFF_POS_Y))
 	player.HP = memory.ReadU32(handle, uintptr(player.Address+config.OFF_HP_ENTITY))
 	player.MaxHP = GetMaxHP(handle, player.Address)
+	player.MP, player.MaxMP = GetLocalPlayerMana(handle, x2game)
 
 	return player
+}
+
+func GetLocalPlayerMana(handle windows.Handle, x2game uintptr) (current, max uint32) {
+	p1 := memory.ReadU32(handle, x2game+config.PTR_MANA_BASE)
+	if p1 == 0 {
+		return 0, 0
+	}
+
+	p2 := memory.ReadU32(handle, uintptr(p1+config.OFF_MANA_PTR1))
+	if p2 == 0 {
+		return 0, 0
+	}
+
+	p3 := memory.ReadU32(handle, uintptr(p2+config.OFF_MANA_PTR2))
+	if p3 == 0 {
+		return 0, 0
+	}
+
+	p4 := memory.ReadU32(handle, uintptr(p3+config.OFF_MANA_PTR3))
+	if p4 == 0 {
+		return 0, 0
+	}
+
+	p5 := memory.ReadU32(handle, uintptr(p4+config.OFF_MANA_PTR4))
+	if p5 == 0 {
+		return 0, 0
+	}
+
+	p6 := memory.ReadU32(handle, uintptr(p5+config.OFF_MANA_PTR5))
+	if p6 == 0 {
+		return 0, 0
+	}
+
+	p7 := memory.ReadU32(handle, uintptr(p6+config.OFF_MANA_PTR6))
+	if p7 == 0 {
+		return 0, 0
+	}
+
+	current = memory.ReadU32(handle, uintptr(p7+config.OFF_MANA_CURRENT))
+	max = memory.ReadU32(handle, uintptr(p7+config.OFF_MANA_MAX))
+
+	return current, max
 }
 
 func GetMaxHP(handle windows.Handle, entityAddr uint32) uint32 {
