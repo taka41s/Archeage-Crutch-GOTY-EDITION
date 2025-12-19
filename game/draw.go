@@ -183,6 +183,16 @@ func (g *Game) drawLeftPanel(screen *ebiten.Image, player entity.Entity, x, y, w
     }
     vector.DrawFilledRect(screen, innerX, currentY, 12, 12, buffColor, false)
     ebitenutil.DebugPrintAt(screen, fmt.Sprintf(" Buff Break: %s (%d)", buffStatus, g.buffMonitor.Whitelist.Reactions), int(innerX)+14, int(currentY)-1)
+    currentY += 18
+
+    freezeColor := colorRed
+    freezeStatus := "OFF"
+    if g.buffFreezeEnabled {
+        freezeColor = colorCyan
+        freezeStatus = fmt.Sprintf("ON (%d)", g.buffFreezeValue)
+    }
+    vector.DrawFilledRect(screen, innerX, currentY, 12, 12, freezeColor, false)
+    ebitenutil.DebugPrintAt(screen, fmt.Sprintf(" Buff Freeze: %s", freezeStatus), int(innerX)+14, int(currentY)-1)
     currentY += 30
 
     // === BUFFS ===
@@ -427,7 +437,7 @@ func (g *Game) drawConfigPanel(screen *ebiten.Image, y, h float32) {
     currentY := y + padding
 
     // Title
-    ebitenutil.DebugPrintAt(screen, "=== CONFIGURATION ===   [F3] Toggle CC Break  |  [F4] Toggle Buff Break", int(innerX), int(currentY))
+    ebitenutil.DebugPrintAt(screen, "=== CONFIGURATION ===   [F3] CC Break  |  [F4] Buff Break  |  [F5] Buff Freeze", int(innerX), int(currentY))
     currentY += 25
 
     // === ROW 1: Toggle Buttons ===
@@ -436,6 +446,7 @@ func (g *Game) drawConfigPanel(screen *ebiten.Image, y, h float32) {
     g.ccBreakBtn.Y = currentY
     g.buffMonitorBtn.Y = currentY
     g.buffBreakBtn.Y = currentY
+    g.buffFreezeBtn.Y = currentY
 
     // Draw all buttons
     btnColor := color.RGBA{40, 80, 40, 255}
@@ -477,6 +488,14 @@ func (g *Game) drawConfigPanel(screen *ebiten.Image, y, h float32) {
         buffBrkHover = color.RGBA{80, 50, 50, 255}
     }
     g.buffBreakBtn.Draw(screen, buffBrkColor, buffBrkHover)
+
+    freezeBtnColor := color.RGBA{40, 80, 100, 255}
+    freezeHoverColor := color.RGBA{50, 100, 120, 255}
+    if !g.buffFreezeEnabled {
+        freezeBtnColor = color.RGBA{60, 50, 50, 255}
+        freezeHoverColor = color.RGBA{80, 60, 60, 255}
+    }
+    g.buffFreezeBtn.Draw(screen, freezeBtnColor, freezeHoverColor)
 
     currentY += 35
 

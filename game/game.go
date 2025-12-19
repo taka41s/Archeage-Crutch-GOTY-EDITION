@@ -56,6 +56,10 @@ type Game struct {
     buffMonitorBtn *ui.Button
     buffBreakBtn   *ui.Button
 
+    buffFreezeEnabled bool
+    buffFreezeValue   uint32
+    buffFreezeBtn     *ui.Button
+
     mouseX, mouseY int
 
     cachedDebuffBase   uintptr
@@ -76,6 +80,8 @@ func NewGame() *Game {
         entityScanInterval: 1000 * time.Millisecond,
         mountConfig:        mount.NewMountConfig(),
         entities:           make([]entity.Entity, 0, 100),
+        buffFreezeEnabled:  false,
+        buffFreezeValue:    0,
         masterToggleBtn: &ui.Button{
             X: 25, Y: 0, W: 100, H: 22,
             Label: "AutoPot:ON",
@@ -95,6 +101,10 @@ func NewGame() *Game {
         buffBreakBtn: &ui.Button{
             X: 445, Y: 0, W: 100, H: 22,
             Label: "BuffBrk:ON",
+        },
+        buffFreezeBtn: &ui.Button{
+            X: 550, Y: 0, W: 100, H: 22,
+            Label: "Freeze:OFF",
         },
         // HP Potions
         desertFire: &ui.PotionConfig{
@@ -185,6 +195,8 @@ func NewGame() *Game {
     g.x2game = x2game
     g.icudt42 = icudt42
     g.connected = true
+
+    fmt.Printf("[INFO] x2game.dll base: %08X\n", x2game)
 
     return g
 }
@@ -313,6 +325,55 @@ func (g *Game) findBuffListFromPlayer() uintptr {
     g.cachedBuffListAddr = uintptr(listPtr)
     g.lastBuffCheck = time.Now()
     return g.cachedBuffListAddr
+}
+
+// getBuffFreezeAddress resolves the pointer chain for buff freeze
+// x2game.dll+01325640 -> +0x4 -> +0x20 -> +0x8 -> +0x384
+func (g *Game) getBuffFreezeAddress() uintptr {
+    ptr1 := memory.ReadU32(g.handle, g.x2game+config.PTR_BUFF_FREEZE)
+    if ptr1 == 0 {
+        return 0
+    }
+
+    ptr2 := memory.ReadU32(g.handle, uintptr(ptr1)+uintptr(config.OFF_BUFF_FREEZE_PTR1))
+    if ptr2 == 0 {
+        return 0
+    }
+
+    ptr3 := memory.ReadU32(g.handle, uintptr(ptr2)+uintptr(config.OFF_BUFF_FREEZE_PTR2))
+    if ptr3 == 0 {
+        return 0
+    }
+
+    ptr4 := memory.ReadU32(g.handle, uintptr(ptr3)+uintptr(config.OFF_BUFF_FREEZE_PTR3))
+    if ptr4 == 0 {
+        return 0
+    }
+
+    return uintptr(ptr4) + uintptr(config.OFF_BUFF_FREEZE_FINAL)
+}
+
+// freezeBuffValue writes the frozen value to the buff count address
+func (g *Game) freezeBuffValue() {
+    if !g.buffFreezeEnabled {
+        return
+    }
+
+    addr := g.getBuffFreezeAddress()
+    if addr == 0 {
+        return
+    }
+
+    memory.WriteU32(g.handle, addr, g.buffFreezeValue)
+}
+
+// readBuffFreezeValue reads the current value at the freeze address
+func (g *Game) readBuffFreezeValue() uint32 {
+    addr := g.getBuffFreezeAddress()
+    if addr == 0 {
+        return 0
+    }
+    return memory.ReadU32(g.handle, addr)
 }
 
 func (g *Game) updateBuffsInstant() {
@@ -528,6 +589,7 @@ func (g *Game) handleInput() {
     g.ccBreakBtn.Hovered = g.ccBreakBtn.Contains(g.mouseX, g.mouseY)
     g.buffMonitorBtn.Hovered = g.buffMonitorBtn.Contains(g.mouseX, g.mouseY)
     g.buffBreakBtn.Hovered = g.buffBreakBtn.Contains(g.mouseX, g.mouseY)
+    g.buffFreezeBtn.Hovered = g.buffFreezeBtn.Contains(g.mouseX, g.mouseY)
     g.desertFire.ToggleBtn.Hovered = g.desertFire.ToggleBtn.Contains(g.mouseX, g.mouseY)
     g.nuiNova.ToggleBtn.Hovered = g.nuiNova.ToggleBtn.Contains(g.mouseX, g.mouseY)
     g.mossyPool.ToggleBtn.Hovered = g.mossyPool.ToggleBtn.Contains(g.mouseX, g.mouseY)
@@ -581,6 +643,21 @@ func (g *Game) handleInput() {
                 g.buffBreakBtn.Label = "BuffBrk:ON"
             } else {
                 g.buffBreakBtn.Label = "BuffBrk:OFF"
+            }
+        }
+
+        // Buff Freeze toggle
+        if g.buffFreezeBtn.Contains(g.mouseX, g.mouseY) {
+            if !g.buffFreezeEnabled {
+                // Ativando: captura o valor atual para congelar
+                g.buffFreezeValue = g.readBuffFreezeValue()
+                g.buffFreezeEnabled = true
+                g.buffFreezeBtn.Label = fmt.Sprintf("Freeze:%d", g.buffFreezeValue)
+                fmt.Printf("[FREEZE] ON - Value: %d\n", g.buffFreezeValue)
+            } else {
+                g.buffFreezeEnabled = false
+                g.buffFreezeBtn.Label = "Freeze:OFF"
+                fmt.Println("[FREEZE] OFF")
             }
         }
 
@@ -675,6 +752,20 @@ func (g *Game) handleInput() {
             g.buffBreakBtn.Label = "BuffBrk:OFF"
         }
     }
+
+    // F5 - Buff Freeze toggle
+    if inpututil.IsKeyJustPressed(ebiten.KeyF5) {
+        if !g.buffFreezeEnabled {
+            g.buffFreezeValue = g.readBuffFreezeValue()
+            g.buffFreezeEnabled = true
+            g.buffFreezeBtn.Label = fmt.Sprintf("Freeze:%d", g.buffFreezeValue)
+            fmt.Printf("[FREEZE] ON - Value: %d\n", g.buffFreezeValue)
+        } else {
+            g.buffFreezeEnabled = false
+            g.buffFreezeBtn.Label = "Freeze:OFF"
+            fmt.Println("[FREEZE] OFF")
+        }
+    }
 }
 
 func (g *Game) Update() error {
@@ -688,6 +779,9 @@ func (g *Game) Update() error {
 
     g.updateDebuffsInstant()
     g.updateBuffsInstant()
+
+    // Freeze buff value every frame if enabled
+    g.freezeBuffValue()
 
     if g.frameCount%5 == 0 {
         g.localPlayer = entity.GetLocalPlayer(g.handle, g.x2game)

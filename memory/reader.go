@@ -82,3 +82,21 @@ func CalculateDistance(x1, y1, z1, x2, y2, z2 float32) float32 {
 	dz := z2 - z1
 	return float32(math.Sqrt(float64(dx*dx + dy*dy + dz*dz)))
 }
+
+// WriteU32 writes a 32-bit unsigned integer to memory
+func WriteU32(handle windows.Handle, addr uintptr, value uint32) bool {
+	var bytesWritten uintptr
+
+	ret, _, _ := ProcWriteProcessMemory.Call(
+		uintptr(handle),
+		addr,
+		uintptr(unsafe.Pointer(&value)),
+		4,
+		uintptr(unsafe.Pointer(&bytesWritten)),
+	)
+
+	return ret != 0
+}
+
+// ProcWriteProcessMemory is the WriteProcessMemory syscall
+var ProcWriteProcessMemory = windows.NewLazyDLL("kernel32.dll").NewProc("WriteProcessMemory")
